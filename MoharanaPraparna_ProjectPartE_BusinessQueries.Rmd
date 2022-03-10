@@ -1,0 +1,147 @@
+---
+title: "MoharanaPraparna_ProjectPartE_BusinessQueries"
+author: "PRAPARNA"
+date: "20/12/2021"
+output: html_document
+---
+
+```{r setup}
+library(knitr)
+library(DBI)
+library(RSQLite)
+
+knitr::opts_chunk$set(echo = TRUE)
+
+Story = dbConnect(RSQLite::SQLite(), dbname = "MoharanaPraparna_ProjectPartE_DataBaseFile.db")
+
+knitr::opts_chunk$set(connection = Story)
+```
+
+```{r }
+DBI::dbListTables(Story)
+```
+
+**1. Users can check for specific Genre of book and view details of the book.**
+```{sql connection=Story, max.print=-1}
+SELECT BOOK_NAME,GENRE
+FROM BOOKS
+JOIN BOOK_GENRE ON BOOKS.BOOK_ID=BOOK_GENRE.BOOK_ID
+JOIN GENRE ON GENRE.GENRE_ID=BOOK_GENRE.GENRE_ID
+WHERE GENRE = 'FICTION'
+```
+
+**2.The user can search for specific book name and view details about it.**
+```{sql connection=Story, max.print=-1}
+SELECT BOOK_NAME,(AUTHOR_FIRST_NAME||""||AUTHOR_LAST_NAME) AS AUTHOR_FULLNAME,BOOK_RATING,TRACK_RATING
+FROM BOOKS
+JOIN BOOK_AUTHORSHIP ON BOOKS.BOOK_ID=BOOK_AUTHORSHIP.BOOK_ID
+JOIN AUTHOR ON BOOK_AUTHORSHIP.AUTHOR_ID=AUTHOR.AUTHOR_ID
+WHERE BOOK_NAME LIKE '%ALCHEMIST%';
+```
+
+**3.The user can view recommendations such Best_Sellers,Latest_releases and view list of books related to Recommendation by genre and publication year**
+```{sql connection=Story, max.print=-1}
+SELECT BOOK_NAME,RECOMMENDATION,GENRE,PUBLICATION_YEAR
+FROM BOOKS
+JOIN BOOK_GENRE ON BOOKS.BOOK_ID=BOOK_GENRE.BOOK_ID
+JOIN GENRE ON GENRE.GENRE_ID=BOOK_GENRE.GENRE_ID
+WHERE RECOMMENDATION = 'BEST_SELLERS'
+ORDER BY PUBLICATION_YEAR AND GENRE
+```
+
+**4.User can update instagram id as user might change instagram id in future**
+```{sql connection=Story, max.print=-1}
+UPDATE INSTAGRAM
+SET INSTAGRAM_ID ='HeLlY**90'
+WHERE USER_ID = 105;
+```
+
+**5.User can see for top 3 highest rated books by genre**
+```{sql connection=Story, max.print=-1}
+SELECT BOOK_NAME,BOOK_RATING,GENRE
+FROM BOOKS
+JOIN BOOK_GENRE ON BOOKS.BOOK_ID=BOOK_GENRE.BOOK_ID
+JOIN GENRE ON GENRE.GENRE_ID=BOOK_GENRE.GENRE_ID
+ORDER BY BOOK_RATING DESC 
+LIMIT 3
+```
+
+**6.Users can view the List of Stories and information related to it**
+```{sql connection=Story, max.print=-1}
+SELECT STORIES,NUMBER_OF_EPISODES,DURATION,EPISODES_NO_1,EPISODES_NO_2,EPISODES_NO_3,EPISODES_NO_5
+FROM SERIES;
+```
+
+**7.Admin can view which User who have taken subscription plans 99**
+```{sql connection=Story, max.print=-1}
+SELECT USER_NAME, USER_EMAIL, USER_MOBILE, SUBSCRIPTION_PLAN
+FROM USER
+WHERE SUBSCRIPTION_PLAN == 99
+```
+
+**8. Displaying the books which have less rating than three and not rated books as newly released (EXCEPT clause is used to display the result which could not be displayed in second SELECT statement)** 
+```{sql connection=Story, max.print=-1}
+SELECT BOOK_NAME,BOOK_RATING,GENRE
+FROM BOOKS
+JOIN BOOK_GENRE ON BOOKS.BOOK_ID=BOOK_GENRE.BOOK_ID
+JOIN GENRE ON GENRE.GENRE_ID=BOOK_GENRE.GENRE_ID
+
+EXCEPT
+
+SELECT BOOK_NAME,BOOK_RATING,GENRE
+FROM BOOKS
+JOIN BOOK_GENRE ON BOOKS.BOOK_ID=BOOK_GENRE.BOOK_ID
+JOIN GENRE ON GENRE.GENRE_ID=BOOK_GENRE.GENRE_ID
+GROUP BY BOOK_NAME HAVING BOOK_RATING > 3.0
+```
+
+**9.The Admin can view user who have select kids mode filter without invading the privacy of users**
+```{sql connection=Story, max.print=-1}
+DROP VIEW IF EXISTS KIDSMODE
+```
+
+```{sql connection=Story, max.print=-1}
+CREATE VIEW [KIDSMODE] AS
+SELECT USER_NAME,USER_EMAIL,USER_MOBILE,KIDSMODE
+FROM LOGIN
+JOIN USER ON LOGIN.USER_ID=USER.USER_ID
+```
+
+```{sql connection=Story, max.print=-1}
+SELECT USER_NAME,USER_EMAIL,USER_MOBILE,KIDSMODE FROM [KIDSMODE];
+```
+
+**10.Ranking of Books according to rating and genre.**
+```{sql connection=Story, max.print=-1}
+SELECT BOOK_NAME,BOOK_RATING,GENRE,
+RANK() OVER (
+	PARTITION BY GENRE
+	ORDER BY BOOK_RATING) Ranking
+FROM BOOKS
+JOIN BOOK_GENRE ON BOOKS.BOOK_ID=BOOK_GENRE.BOOK_ID
+JOIN GENRE ON GENRE.GENRE_ID=BOOK_GENRE.GENRE_ID
+```
+
+**11.Admin can view user country and their proficiency level of language as well as language used by them to access the storytel application**
+```{sql connection=Story, max.print=-1}
+SELECT USER_NAME,COUNTRY,PRIMARY_LANGUAGE,SECONDARY_LANGUAGE,SKILL_LEVEL
+FROM USER
+JOIN USER_LANGUAGES ON USER.USER_ID=USER_LANGUAGES.USER_ID
+JOIN LANGUAGE ON USER_LANGUAGES.LANGUAGE_ID=LANGUAGE.LANGUAGE_ID
+JOIN COUNTRY ON COUNTRY.COUNTRY_ID=USER.COUNTRY_ID
+```
+
+**12.User can view ranking of books according to specific genre**
+```{sql connection=Story, max.print=-1}
+WITH Genre_Rank AS (SELECT BOOK_NAME,BOOK_RATING,GENRE
+FROM BOOKS
+JOIN BOOK_GENRE ON BOOKS.BOOK_ID=BOOK_GENRE.BOOK_ID
+JOIN GENRE ON GENRE.GENRE_ID=BOOK_GENRE.GENRE_ID
+WHERE GENRE = 'FICTION')
+
+SELECT BOOK_NAME,BOOK_RATING,GENRE,
+RANK() OVER (
+	PARTITION BY GENRE
+	ORDER BY BOOK_RATING DESC) Ranking
+FROM Genre_Rank
+```
